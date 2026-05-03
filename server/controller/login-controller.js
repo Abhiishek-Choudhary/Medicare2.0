@@ -26,7 +26,7 @@ export const userLogin = async (request, response) => {
       // Return user data (omit sensitive info like password)
       const userData = {
         id: user._id,
-        name: user.name,  // Make sure your User model has a 'name' field
+        name: user.username,
         email: user.email,
       };
       return response.status(200).json({ success: true, data: userData });

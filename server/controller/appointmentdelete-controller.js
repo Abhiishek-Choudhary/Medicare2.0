@@ -1,34 +1,6 @@
 import Appointment from '../model/AppointmentSchema.js';
-import nodemailer from 'nodemailer';
+import { sendCancellationNotice, sendRescheduleNotice } from '../utils/mailer.js';
 
-// Setup transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'akc64016@gmail.com',
-    pass: 'udwg xwhv hgle xnqh', // app password
-  },
-});
-
-// Centralized email sender
-const sendNotification = async (to, subject, text) => {
-  if (!to) {
-    console.warn('No recipient email found. Skipping email notification.');
-    return;
-  }
-  try {
-    await transporter.sendMail({
-      from: 'akc64016@gmail.com',
-      to,
-      subject,
-      text,
-    });
-  } catch (err) {
-    console.error('Error sending email:', err);
-  }
-};
-
-// 🔥 Permanently delete appointment
 export const cancelAppointment = async (req, res) => {
   const appointmentId = req.params.id;
   try {
@@ -37,11 +9,13 @@ export const cancelAppointment = async (req, res) => {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    await sendNotification(
-      deleted.customerEmail,
-      'Appointment Cancelled',
-      `Dear ${deleted.customerName || 'User'}, your appointment on ${new Date(deleted.date).toLocaleString()} has been cancelled.`
-    );
+    sendCancellationNotice({
+      to: deleted.customerEmail,
+      customerName: deleted.customerName,
+      doctorName: deleted.doctorName,
+      date: deleted.date,
+      cancelledBy: 'patient',
+    });
 
     res.status(200).json({ message: 'Appointment cancelled successfully' });
   } catch (err) {
@@ -50,7 +24,6 @@ export const cancelAppointment = async (req, res) => {
   }
 };
 
-// 🩺 Soft cancel by Doctor
 export const cancelAppointmentByDoctor = async (req, res) => {
   try {
     const appointment = await Appointment.findByIdAndUpdate(
@@ -63,11 +36,13 @@ export const cancelAppointmentByDoctor = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Appointment not found' });
     }
 
-    await sendNotification(
-      appointment.customerEmail,
-      'Appointment Cancelled by Doctor',
-      `Dear ${appointment.customerName || 'User'}, your appointment scheduled on ${new Date(appointment.date).toLocaleString()} has been cancelled by the doctor.`
-    );
+    sendCancellationNotice({
+      to: appointment.customerEmail,
+      customerName: appointment.customerName,
+      doctorName: appointment.doctorName,
+      date: appointment.date,
+      cancelledBy: 'doctor',
+    });
 
     res.status(200).json({ success: true, data: appointment });
   } catch (err) {
@@ -76,7 +51,6 @@ export const cancelAppointmentByDoctor = async (req, res) => {
   }
 };
 
-// 🔁 Reschedule appointment
 export const rescheduleAppointment = async (req, res) => {
   const { newDate } = req.body;
 
@@ -85,21 +59,26 @@ export const rescheduleAppointment = async (req, res) => {
   }
 
   try {
+    const existing = await Appointment.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const oldDate = existing.date;
+
     const appointment = await Appointment.findByIdAndUpdate(
       req.params.id,
       { date: newDate, status: 'rescheduled' },
       { new: true }
     );
 
-    if (!appointment) {
-      return res.status(404).json({ success: false, message: 'Appointment not found' });
-    }
-
-    await sendNotification(
-      appointment.customerEmail,
-      'Appointment Rescheduled',
-      `Dear ${appointment.customerName || 'User'}, your appointment has been rescheduled to ${new Date(newDate).toLocaleString()}.`
-    );
+    sendRescheduleNotice({
+      to: appointment.customerEmail,
+      customerName: appointment.customerName,
+      doctorName: appointment.doctorName,
+      oldDate,
+      newDate,
+    });
 
     res.status(200).json({ success: true, data: appointment });
   } catch (err) {

@@ -18,11 +18,23 @@ const imageSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      required: true,
+      default: 'https://www.shutterstock.com/image-photo/profile-photo-attractive-family-doc-600nw-1724693776.jpg',
     },
     fee: {
       type: Number
-    }
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    totalRatings: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

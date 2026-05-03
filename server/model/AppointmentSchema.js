@@ -36,6 +36,14 @@ const appointmentSchema = new mongoose.Schema({
     type: String,
     default: 'scheduled', // 'scheduled', 'cancelled', 'rescheduled'
   },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 5,
+  },
+  review: {
+    type: String,
+  },
 });
 
 const Appointment = mongoose.model("Appointment", appointmentSchema);

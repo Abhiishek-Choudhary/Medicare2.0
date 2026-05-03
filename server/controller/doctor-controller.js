@@ -27,23 +27,36 @@ export const getAllDoctors = async (req, res) => {
 //Doctor login
 export const DoctorLogin = async (request, response) => {
   try {
-    const { name,email } = request.body;
-    const doctor = await Image.findOne({ name, email });
+    const { email, password } = request.body;
 
-    if(doctor){
-      // Return user data (omit sensitive info like password)
-      const DoctorData = {
-        _id: doctor._id,
-        name: doctor.name,  // Make sure your User model has a 'name' field
-        email: doctor.email,
-        speciality: doctor.speciality,
-        fee: doctor.fee,
-        imageUrl: doctor.imageUrl, 
-      };
-      return response.status(200).json({ success: true, data: DoctorData });
-    } else {
-      return response.status(401).json({ success: false, message: 'Invalid Login' });
+    console.log('Doctor login attempt — email:', email, '| password received:', password ? 'yes' : 'NO');
+
+    if (!email || !password) {
+      return response.status(400).json({ success: false, message: 'Email and password are required.' });
     }
+
+    const doctorByEmail = await Image.findOne({ email });
+    console.log('Doctor found by email:', doctorByEmail ? doctorByEmail.name : 'NOT FOUND');
+    console.log('Stored password:', doctorByEmail?.password ?? 'MISSING (registered before password was added)');
+
+    if (!doctorByEmail) {
+      return response.status(401).json({ success: false, message: 'No doctor account found with this email.' });
+    }
+
+    if (doctorByEmail.password !== password) {
+      return response.status(401).json({ success: false, message: 'Incorrect password.' });
+    }
+
+    const DoctorData = {
+      _id: doctorByEmail._id,
+      name: doctorByEmail.name,
+      email: doctorByEmail.email,
+      speciality: doctorByEmail.speciality,
+      fee: doctorByEmail.fee,
+      imageUrl: doctorByEmail.imageUrl,
+    };
+    return response.status(200).json({ success: true, data: DoctorData });
+
   } catch (error) {
     return response.status(500).json({ success: false, message: error.message });
   }

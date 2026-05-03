@@ -1,16 +1,7 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import dotenv from "dotenv";
 import Appointment from "../model/AppointmentSchema.js";
 import Payment from "../model/PaymentSchema.js";
-
-dotenv.config();
-
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID, // Your Razorpay key id
-  key_secret: process.env.RAZORPAY_KEY_SECRET, // Your Razorpay secret
-});
 
 // Create order endpoint
 export const createOrder = async (req, res) => {
@@ -20,12 +11,23 @@ export const createOrder = async (req, res) => {
     return res.status(400).json({ message: "Amount is required" });
   }
 
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    return res.status(500).json({ message: "Razorpay credentials not configured." });
+  }
+
+  console.log("Razorpay key_id:", keyId);
+
   try {
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+
     const options = {
-      amount: amount * 100, // amount in paise (e.g., Rs 500 = 50000 paise)
+      amount: Math.round(amount) * 100, // paise
       currency,
-      receipt: `receipt_order_${Date.now()}`,
-      payment_capture: 1, // auto capture payment
+      receipt: `receipt_${Date.now()}`,
+      payment_capture: 1,
     };
 
     const order = await razorpay.orders.create(options);
@@ -34,31 +36,31 @@ export const createOrder = async (req, res) => {
       id: order.id,
       currency: order.currency,
       amount: order.amount,
+      key_id: keyId,
     });
   } catch (error) {
-    console.error("Razorpay order creation failed:", error);
-    res.status(500).json({ message: "Unable to create order" });
+    console.error("Razorpay order creation failed:", error?.error || error);
+    res.status(500).json({ message: "Unable to create order", detail: error?.error?.description || error.message });
   }
 };
 
 // Verify payment signature endpoint
 export const verifyPayment = (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-    req.body;
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-  // Create the expected signature
-  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keySecret) {
+    return res.status(500).json({ status: "failure", message: "Razorpay secret not configured." });
+  }
+
+  const hmac = crypto.createHmac("sha256", keySecret);
   hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
   const generated_signature = hmac.digest("hex");
 
   if (generated_signature === razorpay_signature) {
-    // Payment is legit
     res.json({ status: "success" });
   } else {
-    // Payment verification failed
-    res
-      .status(400)
-      .json({ status: "failure", message: "Invalid signature sent!" });
+    res.status(400).json({ status: "failure", message: "Invalid signature." });
   }
 };
 

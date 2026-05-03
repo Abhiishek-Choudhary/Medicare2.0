@@ -1,7 +1,8 @@
 import Appointment from "../model/AppointmentSchema.js";
+import { sendBookingConfirmation } from "../utils/mailer.js";
 
 export const createAppointment = async (req, res) => {
-  const { userId, doctorId, doctorName, customerName, date, customerEmail } = req.body;
+  const { userId, doctorId, doctorName, customerName, date, customerEmail, fee } = req.body;
 
   if (!userId || !doctorId || !doctorName || !customerName || !date || !customerEmail) {
     return res.status(400).json({ message: "All fields are required" });
@@ -15,9 +16,19 @@ export const createAppointment = async (req, res) => {
       customerName,
       customerEmail,
       date,
+      fee,
     });
 
     await appointment.save();
+
+    sendBookingConfirmation({
+      to: customerEmail,
+      customerName,
+      doctorName,
+      date,
+      fee: appointment.fee,
+    });
+
     res
       .status(201)
       .json({ message: "Appointment created successfully", appointment });

@@ -3,29 +3,22 @@ import Image from "../model/ImageSchema.js"; // Assuming you have an Image model
 export const uploadImage = async (req, res) => {
   try {
     // Extracting text fields and file
-    const { name, speciality, email, fee } = req.body; // Make sure `name`, `speciality`, and `email` are in `req.body`
+    const { name, speciality, email, fee, password } = req.body;
 
-    // Check if file is uploaded
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded." });
+    if (!name || !speciality || !email || !fee || !password) {
+      return res.status(400).json({ error: "Missing required fields." });
     }
 
-    // Validate that required fields are provided
-    if (!name || !speciality || !email || !fee) {
-      return res
-        .status(400)
-        .json({ error: "Missing required fields (name, speciality, email)." });
-    }
+    const imageUrl = req.file
+      ? `http://localhost:8000/uploads/${req.file.filename}`
+      : 'https://www.shutterstock.com/image-photo/profile-photo-attractive-family-doc-600nw-1724693776.jpg';
 
-    // Construct image URL (adjust this based on your file upload setup)
-    const imageUrl = `http://localhost:8000/uploads/${req.file.filename}`;
-
-    // Create a new image document in MongoDB
     const newImage = new Image({
       name,
       speciality,
       email,
       fee,
+      password,
       imageUrl,
     });
 
