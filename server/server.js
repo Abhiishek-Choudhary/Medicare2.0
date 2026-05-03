@@ -15,7 +15,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://your-frontend.vercel.app"
+  "https://your-frontend.vercel.app",
+  "https://medicare-abhishek.vercel.app"
 ];
 
 app.use(cors({
