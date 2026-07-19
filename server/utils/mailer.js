@@ -117,6 +117,140 @@ export const sendRescheduleNotice = async ({ to, customerName, doctorName, oldDa
     await send(to, 'Appointment Rescheduled – Medicare', html);
 };
 
+// ── Pharmacy order emails ───────────────────────────────────────────
+
+const rupees = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+
+const itemsTable = (items) => `
+  <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;">
+    <thead>
+      <tr style="background:#f0f7ff;">
+        <th style="text-align:left;padding:8px 10px;border-bottom:1px solid #dbe6f2;">Item</th>
+        <th style="text-align:center;padding:8px 10px;border-bottom:1px solid #dbe6f2;">Qty</th>
+        <th style="text-align:right;padding:8px 10px;border-bottom:1px solid #dbe6f2;">Price</th>
+        <th style="text-align:right;padding:8px 10px;border-bottom:1px solid #dbe6f2;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${items.map((it) => `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;">${it.name}</td>
+          <td style="text-align:center;padding:8px 10px;border-bottom:1px solid #f0f0f0;">${it.quantity}</td>
+          <td style="text-align:right;padding:8px 10px;border-bottom:1px solid #f0f0f0;">${rupees(it.price)}</td>
+          <td style="text-align:right;padding:8px 10px;border-bottom:1px solid #f0f0f0;">${rupees(it.subtotal)}</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+
+const addressBlock = (addr) => `
+  <div style="font-size:13px;color:#333;line-height:1.5;">
+    <strong>${addr.fullName}</strong><br/>
+    ${addr.line1}${addr.line2 ? ', ' + addr.line2 : ''}<br/>
+    ${addr.city}, ${addr.state} - ${addr.pincode}<br/>
+    Phone: ${addr.phone}
+  </div>`;
+
+export const sendOrderConfirmation = async ({ to, customerName, order }) => {
+    if (!to || !order) return;
+    const rxNote = order.requiresPrescription
+        ? `<p style="color:#e65100;font-size:13px;background:#fff3e0;border-left:4px solid #e65100;padding:10px 14px;border-radius:6px;">
+             <strong>Prescription verification pending.</strong> Our pharmacist will verify your uploaded prescription before dispatching Rx items.
+           </p>`
+        : '';
+
+    const html = baseTemplate(`
+      <div class="header">
+        <h1>Order Confirmed ✓</h1>
+        <p>Medicare Pharmacy</p>
+      </div>
+      <div class="body">
+        <span class="badge" style="background:#e8f5e9;color:#2e7d32;">Order placed</span>
+        <p>Dear <strong>${customerName}</strong>,</p>
+        <p>Thank you for your order! We've received your purchase and it's being processed.</p>
+
+        <div class="info-box">
+          <p><strong>Order number:</strong> ${order.orderNumber}</p>
+          <p><strong>Order date:</strong> ${new Date(order.createdAt).toLocaleString('en-IN')}</p>
+          <p><strong>Payment:</strong> ${order.paymentMethod} · ${order.paymentStatus}</p>
+        </div>
+
+        <h3 style="margin:20px 0 6px;font-size:15px;color:#1976d2;">Items</h3>
+        ${itemsTable(order.items)}
+
+        <table style="width:100%;font-size:13px;margin-top:8px;">
+          <tr><td style="padding:3px 10px;color:#666;">Subtotal</td><td style="text-align:right;padding:3px 10px;">${rupees(order.subtotal)}</td></tr>
+          <tr><td style="padding:3px 10px;color:#666;">Delivery</td><td style="text-align:right;padding:3px 10px;">${order.deliveryFee === 0 ? 'FREE' : rupees(order.deliveryFee)}</td></tr>
+          <tr><td style="padding:3px 10px;color:#666;">GST</td><td style="text-align:right;padding:3px 10px;">${rupees(order.tax)}</td></tr>
+          <tr><td style="padding:8px 10px;font-weight:700;border-top:1px solid #ddd;">Total</td>
+              <td style="text-align:right;padding:8px 10px;font-weight:700;border-top:1px solid #ddd;">${rupees(order.totalAmount)}</td></tr>
+        </table>
+
+        <h3 style="margin:20px 0 6px;font-size:15px;color:#1976d2;">Shipping to</h3>
+        ${addressBlock(order.shippingAddress)}
+
+        ${rxNote}
+
+        <p style="color:#555;font-size:13px;margin-top:20px;">
+          You can track your order anytime from your Medicine Orders page.
+        </p>
+      </div>`);
+
+    await send(to, `Order Confirmed – ${order.orderNumber} – Medicare Pharmacy`, html);
+};
+
+export const sendOrderCancellation = async ({ to, customerName, order, reason }) => {
+    if (!to || !order) return;
+    const html = baseTemplate(`
+      <div class="header" style="background:linear-gradient(135deg,#c62828,#ef5350);">
+        <h1>Order Cancelled</h1>
+        <p>Medicare Pharmacy</p>
+      </div>
+      <div class="body">
+        <span class="badge" style="background:#ffebee;color:#c62828;">Cancelled</span>
+        <p>Dear <strong>${customerName}</strong>,</p>
+        <p>Your order <strong>${order.orderNumber}</strong> has been cancelled.</p>
+        ${reason ? `<div class="info-box" style="border-color:#c62828;"><p><strong>Reason:</strong> ${reason}</p></div>` : ''}
+        <p style="color:#555;font-size:13px;">If payment was made, a refund will be initiated within 5-7 business days.</p>
+      </div>`);
+
+    await send(to, `Order Cancelled – ${order.orderNumber} – Medicare Pharmacy`, html);
+};
+
+export const sendOrderStatusUpdate = async ({ to, customerName, order, newStatus, note }) => {
+    if (!to || !order) return;
+
+    const statusMeta = {
+        confirmed:        { label: 'Confirmed',        color: '#1976d2', bg: '#e3f2fd', msg: 'Your order has been confirmed and is being prepared.' },
+        packed:           { label: 'Packed',           color: '#1976d2', bg: '#e3f2fd', msg: 'Your order has been packed and is ready to ship.' },
+        shipped:          { label: 'Shipped',          color: '#0288d1', bg: '#e1f5fe', msg: 'Your order is on its way!' },
+        out_for_delivery: { label: 'Out for Delivery', color: '#e65100', bg: '#fff3e0', msg: 'Your order is out for delivery today.' },
+        delivered:        { label: 'Delivered',        color: '#2e7d32', bg: '#e8f5e9', msg: 'Your order has been delivered. We hope you feel better soon!' },
+        returned:         { label: 'Returned',         color: '#c62828', bg: '#ffebee', msg: 'Your order has been marked as returned.' },
+    };
+    const meta = statusMeta[newStatus] || { label: newStatus, color: '#666', bg: '#eee', msg: `Your order status is now ${newStatus}.` };
+
+    const tracking = order.trackingId
+        ? `<div class="info-box"><p><strong>Delivery partner:</strong> ${order.deliveryPartner || '—'}</p>
+           <p><strong>Tracking ID:</strong> ${order.trackingId}</p></div>`
+        : '';
+
+    const html = baseTemplate(`
+      <div class="header" style="background:linear-gradient(135deg,${meta.color},${meta.color}cc);">
+        <h1>Order ${meta.label}</h1>
+        <p>Medicare Pharmacy</p>
+      </div>
+      <div class="body">
+        <span class="badge" style="background:${meta.bg};color:${meta.color};">${meta.label}</span>
+        <p>Dear <strong>${customerName}</strong>,</p>
+        <p>${meta.msg}</p>
+        <div class="info-box"><p><strong>Order number:</strong> ${order.orderNumber}</p></div>
+        ${tracking}
+        ${note ? `<p style="color:#555;font-size:13px;"><strong>Note:</strong> ${note}</p>` : ''}
+      </div>`);
+
+    await send(to, `Order ${meta.label} – ${order.orderNumber} – Medicare Pharmacy`, html);
+};
+
 // Internal helper — never throws so email failures never break the main flow
 const send = async (to, subject, html) => {
     try {

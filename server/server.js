@@ -3,6 +3,11 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import Routes from './routes/route.js';
+import PharmacyRoutes from './routes/pharmacy-routes.js';
+import AdminRoutes from './routes/admin-routes.js';
+import BloodRoutes from './routes/blood-routes.js';
+import HospitalRoutes from './routes/hospital-routes.js';
+import MeRoutes from './routes/me-routes.js';
 import connectDB from './db/db.js';
 import DefaultData from './default.js';
 import path from 'path';
@@ -31,6 +36,11 @@ app.use(cors({
 }));
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/pharmacy', PharmacyRoutes);
+app.use('/admin', AdminRoutes);
+app.use('/blood', BloodRoutes);
+app.use('/hospital', HospitalRoutes);
+app.use('/me', MeRoutes);
 app.use('/', Routes);
 
 const PORT = 8000;

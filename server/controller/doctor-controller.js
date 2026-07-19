@@ -1,6 +1,7 @@
 
 import Doctor from '../model/DoctorSchema.js'
 import Image from '../model/ImageSchema.js'
+import Hospital from '../model/HospitalSchema.js'
 
 export const getDoctor = async(request,response) => {
     try{
@@ -17,7 +18,18 @@ export const getDoctor = async(request,response) => {
 
 export const getAllDoctors = async (req, res) => {
   try {
-    const doctors = await Image.find();
+    const { hospitalId, q, speciality } = req.query;
+    const filter = {};
+    if (q) filter.name = { $regex: q, $options: 'i' };
+    if (speciality) filter.speciality = { $regex: speciality, $options: 'i' };
+
+    if (hospitalId) {
+      const hospital = await Hospital.findById(hospitalId).select('affiliatedDoctorIds');
+      if (!hospital) return res.status(404).json({ message: 'Hospital not found' });
+      filter._id = { $in: hospital.affiliatedDoctorIds };
+    }
+
+    const doctors = await Image.find(filter);
     res.status(200).json(doctors);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch doctors' });

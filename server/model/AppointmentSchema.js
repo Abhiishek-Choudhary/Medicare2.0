@@ -44,7 +44,7 @@ const appointmentSchema = new mongoose.Schema({
   review: {
     type: String,
   },
-});
+}, { timestamps: true });
 
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 
