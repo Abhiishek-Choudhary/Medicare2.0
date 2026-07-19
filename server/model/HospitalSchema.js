@@ -10,7 +10,10 @@ const serviceSchema = new mongoose.Schema({
 });
 
 const hospitalSchema = new mongoose.Schema({
-    ownerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true, unique: true },
+    // Owner user account — optional so hospitals can be auto-created (e.g. by doctors during signup)
+    // and claimed by their real operator later. sparse index prevents duplicate-key collisions on null.
+    ownerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', unique: true, sparse: true },
+    autoCreated: { type: Boolean, default: false },
 
     name:        { type: String, required: true, index: true },
     slug:        { type: String, unique: true },

@@ -18,7 +18,7 @@ const imageSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      default: 'https://www.shutterstock.com/image-photo/profile-photo-attractive-family-doc-600nw-1724693776.jpg',
+      default: '',
     },
     fee: {
       type: Number
@@ -34,6 +34,13 @@ const imageSchema = new mongoose.Schema(
     totalRatings: {
       type: Number,
       default: 0,
+    },
+    hospitalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+    },
+    hospitalName: {
+      type: String,
     },
   },
   { timestamps: true }
